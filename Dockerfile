@@ -7,8 +7,10 @@ RUN pip3 install --no-cache-dir \
         ipykernel \
         matplotlib \
         pandas \
-        scipy \
-        fakeokpy
+        ipywidgets \
+        scipy
+
+RUN pip3 install --no-cache-dir okgrade==0.4.3
 
 COPY . /srv/repo
 

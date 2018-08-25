@@ -1,5 +1,35 @@
 """
-Script to post grades back to EdX
+Script to post grades back to EdX.
+
+How to run standalone:
+
+1. Find out the lti_launch_info for the user / lab combo.
+
+   1. Open up a postgresql shell with:
+
+      bash grading/psql
+
+   2. Find the lti_launch_info for the user / lab with:
+
+      SELECT * FROM user_id='user_id' AND resource_link_id='resource_link_id';
+
+      user_id is the EdX user id that is specific for the course. It
+      is the same as the hub user id. You can easily find this from
+      https://edx.readthedocs.io/projects/open-edx-building-and-running-a-course/en/named-release-birch/running_course/course_student.html#access-anonymized
+
+   3. Copy the third row (launch_info)
+
+2. Run this script.
+
+   1. Make sure you are in the venv:
+
+      source bin/activate
+
+   2. Run this!
+
+      python grading/postgrade.py '<json copied from step 1>' <grade>
+
+      The single quotes are important
 """
 import json
 import os
@@ -17,14 +47,6 @@ import async_timeout
 class GradePostException(Exception):
     def __init__(self, response=None):
         self.response = response
-
-
-async def fetch(session, url):
-            return await response.text()
-
-async def main():
-        html = await fetch(session, 'http://python.org')
-        print(html)
 
 async def post_grade(sourcedid, outcomes_url, consumer_key, consumer_secret, grade):
     # Who is treating XML as Text? I am!
@@ -93,7 +115,7 @@ async def post_grade(sourcedid, outcomes_url, consumer_key, consumer_secret, gra
                 resp_text = await response.text()
 
                 if response.status != 200:
-                    raise GradePostException(resp)
+                    raise GradePostException(response)
 
     response_tree = etree.fromstring(resp_text.encode('utf-8'))
 
@@ -102,10 +124,10 @@ async def post_grade(sourcedid, outcomes_url, consumer_key, consumer_secret, gra
     code_major = status_tree.find('{http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0}imsx_codeMajor').text
 
     if code_major != 'success':
-        raise GradePostException(resp)
+        raise GradePostException(response)
 
 
-def main():
+async def main():
     argparser = argparse.ArgumentParser()
     argparser.add_argument(
         'lti_launch_info',
@@ -123,7 +145,7 @@ def main():
     consumer_key = os.environ['LTI_CONSUMER_KEY']
     consumer_secret = os.environ['LTI_CONSUMER_SECRET']
 
-    post_grade(
+    await post_grade(
         lti_launch_info['lis_result_sourcedid'],
         lti_launch_info['lis_outcome_service_url'],
         consumer_key,
@@ -132,4 +154,7 @@ def main():
     )
 
 if __name__ == '__main__':
-    main()
+    loop = asyncio.get_event_loop()
+    # Run the commands
+    loop.run_until_complete(main())
+    loop.close()
